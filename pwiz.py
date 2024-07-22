@@ -1,10 +1,15 @@
+#PWIZ, Peter N 2024
+
 import subprocess
 import json
 import os
 import argparse
 import re
 import shutil
+import sys
 from datetime import datetime
+
+verbose = False
 
 def dms_to_decimal(degrees, minutes, seconds, direction):
     """Convert DMS (Degrees, Minutes, Seconds) format to decimal degrees."""
@@ -144,8 +149,11 @@ def convert_exif_gps_to_decimal(gps_latitude, gps_latitude_ref, gps_longitude, g
 
 def write_gps_and_creation_date_and_description_to_exif(image_path, gps_data, dry_run, keep_original):
     """Write GPS coordinates, CreationDate, and Description to EXIF metadata using ExifTool."""
-
-    print(f"{os.path.basename(image_path)}:")
+    if verbose:
+        print(f"{image_path}:")
+    else: 
+        sys.stdout.write(".") 
+        sys.stdout.flush()
     if not gps_data:
         print("No GPS data, CreationDate, or Description to write.")
         return
@@ -176,13 +184,13 @@ def write_gps_and_creation_date_and_description_to_exif(image_path, gps_data, dr
                 existing_longitude_ref
             )
 
-            print(f" - Existing EXIF GPS: lat={exif_latitude}, long={exif_longitude}")
+            print(f" - Existing EXIF GPS: lat={exif_latitude}, long={exif_longitude}") if verbose else None
 
             if (round(exif_latitude, 6) == round(gps_data['latitude'], 6) and
                 round(exif_longitude, 6) == round(gps_data['longitude'], 6)):
-                print(f" - GPS data not changed, Skipped.")
+                print(f" - GPS data not changed, Skipped.") if verbose else None
             else:
-                print(f" - New GPS: lat={gps_data['latitude']}, long={gps_data['longitude']}")
+                print(f"\r - New GPS: lat={gps_data['latitude']}, long={gps_data['longitude']}")
                 command.extend([
                     f"-GPSLatitude={gps_data['latitude']}",
                     f"-GPSLongitude={gps_data['longitude']}",
@@ -191,7 +199,7 @@ def write_gps_and_creation_date_and_description_to_exif(image_path, gps_data, dr
                 ])
                 data_written.append("GPS")
         else:
-            print(f" - New GPS: lat={gps_data['latitude']}, long={gps_data['longitude']}")
+            print(f"\r - New GPS: lat={gps_data['latitude']}, long={gps_data['longitude']}")
             command.extend([
                 f"-GPSLatitude={gps_data['latitude']}",
                 f"-GPSLongitude={gps_data['longitude']}",
@@ -206,10 +214,10 @@ def write_gps_and_creation_date_and_description_to_exif(image_path, gps_data, dr
 
         if existing_creation_date:
             normalized_existing_date = normalize_datetime(existing_creation_date)
-            print(f" - Existing EXIF CreationDate: {normalized_existing_date}")
+            print(f" - Existing EXIF CreationDate: {normalized_existing_date}") if verbose else None
 
             if normalized_existing_date == gps_data['creation_date']:
-                print(f" - CreationDate not changed, Skipped.")
+                print(f" - CreationDate not changed, Skipped.") if verbose else None
             else:
                 print(f" - New CreationDate: {gps_data['creation_date']}")
                 command.append(f"-CreateDate={gps_data['creation_date']}")
@@ -220,14 +228,13 @@ def write_gps_and_creation_date_and_description_to_exif(image_path, gps_data, dr
             data_written.append("CreationDate")
 
     # Handle Description
-#    print(gps_data)
     if 'description' in gps_data:
         existing_description = exif_data.get('ImageDescription')
         if existing_description:
-            print(f" - Existing EXIF Description: {existing_description}")
+            print(f" - Existing EXIF Description: {existing_description}") if verbose else None
 
             if existing_description == gps_data['description']:
-                print(f" - Description not changed, Skipped.")
+                print(f" - Description not changed, Skipped.") if verbose else None
             else:
                 print(f" - New Description: {gps_data['description']}")
                 command.append(f"-ImageDescription={gps_data['description']}")
@@ -340,19 +347,32 @@ def main():
     parser = argparse.ArgumentParser(description="Process images and sidecar XMP files to transfer metadata.")
     parser.add_argument('root_directory', type=str, help="Root directory to process.")
     parser.add_argument('--delete', action='store_true', help="Delete XMP sidecar files after processing.")
+    parser.add_argument('--nobackup', action='store_true', help="No need for backup.")
     parser.add_argument('--backup', type=str, help="Backup location for XMP sidecar files.")
     parser.add_argument('--keep', action='store_true', help="Keep a copy of the file as _original.")
     parser.add_argument('--gps', action='store_true', help="Only parse GPS data from sidecar files.")
     parser.add_argument('--date', action='store_true', help="Only parse CreationDate from sidecar files.")
     parser.add_argument('--description', action='store_true', help="Only parse Description from sidecar files.")
     parser.add_argument('--dryrun', action='store_true', help="Run the script without making any changes.")
+    parser.add_argument('-v','--verbose', action='store_true', help="Log more details to console.")
 
     args = parser.parse_args()
-    
+    global verbose 
+    verbose = args.verbose
+    print ("<verbose>") if verbose else print (".", end="") 
     # If no --GPS or --Date is specified, default to both
     parse_gps = args.gps or (not args.date and not args.description)
     parse_date = args.date or (not args.gps and not args.description)
     parse_description = args.description or (not args.gps and not args.date)
+
+    if not args.backup and (not args.nobackup):
+        print("""\rError: Use the `--backup <folder>` option to specify a backup location where files will be copied before changes are made.
+
+Backup of changed and deleted files to another folder is recommended. If you choose not to create a backup, use the `--nobackup` parameter to indicate that no backup should be performed.
+
+Tip: Use the `--dryrun` option to verify what actions would be taken without making any actual changes. This can help you confirm the behavior of the script before performing the actual operations.
+""")
+        sys.exit(1)
 
     process_images_and_sidecars(args.root_directory, args.delete, args.backup, parse_gps, parse_date, args.dryrun, parse_description, args.keep)
 
