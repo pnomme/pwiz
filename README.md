@@ -42,3 +42,6 @@ python3 pwiz.py /path/to/photos \
 ```
 
 Kjør uten `--dryrun` når resultatet ser riktig ut.
+
+## Credits
+Peter Nomme 2024-2026, anycloud as
