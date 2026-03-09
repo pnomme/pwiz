@@ -1,41 +1,47 @@
 # PWIZ - EXIF/XMP Metadata Processor
 
-This script processes XMP sidecar files and updates the EXIF metadata in the corresponding images.
-
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Introduction
-
-The EXIF/XMP Metadata Processor is a tool designed to extract metadata from images. It supports flexible command-line options, including the ability to specify a backup location for original images and XMP sidecar files.
+PWIZ kopierer metadata fra XMP-sidecar til bilder, og kan i tillegg geotagge bilder uten GPS ved hjelp av Google Timeline JSON.
 
 ## Features
 
-- Extract EXIF metadata from images
-- Extract and handle XMP sidecar files
-- Specify backup locations for XMP files
-- Flexible command-line options for metadata processing
+- Leser XMP-sidecar og skriver metadata til bilde via `exiftool`
+- Støtter GPS, `CreateDate` og `ImageDescription`
+- Kan slette sidecar etter behandling (med valgfri backup)
+- Kan lese Google Timeline-filer og skrive GPS til bilder som mangler GPS
 
-## Installation
+## Prerequisites
 
-### Prerequisites
+- Python 3
+- [ExifTool](https://exiftool.org/)
 
-- Python 3.x
-- `exiftool` (required for metadata extraction)
-
-### Install `exiftool`
-
-Download and install `exiftool` from [ExifTool](https://exiftool.org/).
-
-### Clone the Repository
+## Usage
 
 ```sh
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+python3 pwiz.py <root_directory> [options]
+```
+
+Viktige valg:
+
+- `--gps`, `--date`, `--description`: begrens hvilke felter som behandles
+- `--timeline <path>`: Google Timeline JSON-fil eller mappe med JSON-filer
+- `--timeline-max-gap <minutes>`: maks tidsavvik mellom bilde og Timeline-punkt (standard `30`)
+- `--force`: overskriv eksisterende GPS (standard er å beholde GPS som finnes)
+- `--dryrun`: vis hva som ville blitt skrevet, uten å endre filer
+- `--backup <folder>` eller `--nobackup`: påkrevd sikkerhetsvalg
+
+## Example
+
+Skriv GPS fra Google Timeline til bilder uten GPS:
+
+```sh
+python3 pwiz.py /path/to/photos \
+  --timeline /path/to/google-timeline \
+  --gps \
+  --dryrun \
+  --nobackup
+```
+
+Kjør uten `--dryrun` når resultatet ser riktig ut.
+
+## Credits
+Peter Nomme 2024-2026, anycloud as
